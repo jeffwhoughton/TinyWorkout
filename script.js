@@ -65,23 +65,25 @@ document.addEventListener('DOMContentLoaded', () => {
         exercises.forEach(ex => {
             const entry = document.createElement('div');
             entry.className = 'exercise-entry';
-            entry.setAttribute('draggable', 'true'); 
-            entry.dataset.id = ex.id; 
+            entry.dataset.id = ex.id;
 
             let noteInputHtml = '';
             if (ex.hasNote) {
                 noteInputHtml = `<input type="text" class="note-input" id="note-${ex.id}" placeholder="Note (e.g., weight)">`;
             }
 
-            entry.innerHTML = `
-                <div class="exercise-main">
-                    <button class="exercise-btn" data-id="${ex.id}" data-title="${ex.title}">
-                        <img src="icons/${ex.icon}" alt="${ex.title}">
-                    </button>
-                    <span class="exercise-title">${ex.title}</span>
-                </div>
-                ${noteInputHtml}
+            // Make only exercise-main draggable
+            const exerciseMain = document.createElement('div');
+            exerciseMain.className = 'exercise-main';
+            exerciseMain.setAttribute('draggable', 'true');
+            exerciseMain.innerHTML = `
+                <button class="exercise-btn" data-id="${ex.id}" data-title="${ex.title}">
+                    <img src="icons/${ex.icon}" alt="${ex.title}">
+                </button>
+                <span class="exercise-title">${ex.title}</span>
             `;
+            entry.appendChild(exerciseMain);
+            if (noteInputHtml) entry.innerHTML += noteInputHtml;
             exerciseGrid.appendChild(entry);
         });
     };
@@ -96,6 +98,13 @@ document.addEventListener('DOMContentLoaded', () => {
     exerciseGrid.addEventListener('click', (e) => {
         const button = e.target.closest('.exercise-btn');
         if (!button) return;
+
+        // Animate button for feedback
+        button.classList.add('animated');
+        // Animate owed-count
+        owedCountEl.classList.add('animated');
+        setTimeout(() => owedCountEl.classList.remove('animated'), 500);
+        setTimeout(() => button.classList.remove('animated'), 500);
 
         const { id, title } = button.dataset;
         const noteInput = document.getElementById(`note-${id}`);
@@ -288,20 +297,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- DRAG AND DROP LISTENERS (CORRECTED) ---
     exerciseGrid.addEventListener('dragstart', (e) => {
-        // CORRECTED: Use .closest() to find the draggable parent
-        const draggable = e.target.closest('.exercise-entry');
+        // Prevent drag if starting on an input or textarea
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+            e.preventDefault();
+            return;
+        }
+        // Only allow drag from .exercise-main
+        const draggable = e.target.closest('.exercise-main');
         if (draggable) {
-            e.dataTransfer.setData('text/plain', draggable.dataset.id);
-            // Use a slight delay to allow the browser to render the drag image
+            const parentEntry = draggable.parentElement;
+            e.dataTransfer.setData('text/plain', parentEntry.dataset.id);
             setTimeout(() => {
                 draggable.style.opacity = '0.5';
             }, 0);
+        } else {
+            e.preventDefault();
         }
     });
 
     exerciseGrid.addEventListener('dragend', (e) => {
-        // CORRECTED: Use .closest() to find the draggable parent
-        const draggable = e.target.closest('.exercise-entry');
+        const draggable = e.target.closest('.exercise-main');
         if (draggable) {
             draggable.style.opacity = '1';
         }
@@ -317,6 +332,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     nextUpQueueContainer.addEventListener('drop', (e) => {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+            e.preventDefault();
+            return;
+        }
         e.preventDefault();
         nextUpQueueContainer.classList.remove('drag-over');
         const id = e.dataTransfer.getData('text/plain');
@@ -334,6 +353,14 @@ document.addEventListener('DOMContentLoaded', () => {
     nextUpQueueContainer.addEventListener('click', (e) => {
         const button = e.target.closest('.exercise-btn');
         if (button) {
+            // Animate button for feedback
+            button.classList.add('animated');
+            // Animate owed-count
+            owedCountEl.classList.add('animated');
+            setTimeout(() => owedCountEl.classList.remove('animated'), 500);
+            // Find the queue item element
+            const queueItem = button.closest('.queue-item');
+            // Get group index and count
             const count = parseInt(button.dataset.count, 10);
             const groupIndex = parseInt(button.dataset.groupIndex, 10);
             let startIdx = 0;
@@ -342,21 +369,31 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (i === groupIndex) break;
                 startIdx += grouped[i].count;
             }
-            const itemsToLog = state.nextUpQueue.slice(startIdx, startIdx + count);
-            itemsToLog.forEach(item => {
-                if (state.exercisesOwed > 0) state.exercisesOwed--;
-                state.log.push({
-                    timestamp: new Date().toISOString(),
-                    id: item.id,
-                    title: item.title,
-                    note: item.note
-                });
-            });
-            state.nextUpQueue.splice(startIdx, count);
-            saveState();
-            updateOwedMeter();
-            renderLog();
-            renderNextUpQueue();
+            // After animation, remove items and animate slide-back
+            setTimeout(() => {
+                // Animate removal of the queue item
+                if (queueItem) {
+                    queueItem.classList.add('slide-back');
+                }
+                // Wait for slide-back transition before updating state
+                setTimeout(() => {
+                    const itemsToLog = state.nextUpQueue.slice(startIdx, startIdx + count);
+                    itemsToLog.forEach(item => {
+                        if (state.exercisesOwed > 0) state.exercisesOwed--;
+                        state.log.push({
+                            timestamp: new Date().toISOString(),
+                            id: item.id,
+                            title: item.title,
+                            note: item.note
+                        });
+                    });
+                    state.nextUpQueue.splice(startIdx, count);
+                    saveState();
+                    updateOwedMeter();
+                    renderLog();
+                    renderNextUpQueue();
+                }, 300); // match CSS transition duration
+            }, 500); // wait for button animation
             return;
         }
         const clearBtn = e.target.closest('#reset-queue-btn');
@@ -380,25 +417,58 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- SWIPE PANEL LOGIC ---
     let touchStartY = 0; let currentY = 0;
-    
-    swipeIndicator.addEventListener('click', () => {
-        // Toggle open/close state
-        bottomPanel.classList.toggle('is-open');
+    let drawerState = 'closed'; // 'open', 'closed', 'transitioning'
+
+    function setDrawerState(newState) {
+        if (drawerState === newState) return;
+        drawerState = newState;
+        if (newState === 'open') {
+            bottomPanel.classList.add('is-open');
+        } else if (newState === 'closed') {
+            bottomPanel.classList.remove('is-open');
+        }
+    }
+
+    // Listen for transition end to update state
+    bottomPanel.addEventListener('transitionend', () => {
+        if (bottomPanel.classList.contains('is-open')) {
+            drawerState = 'open';
+        } else {
+            drawerState = 'closed';
+        }
+    });
+
+    swipeIndicator.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (drawerState === 'transitioning') return;
+        if (drawerState === 'open') {
+            setDrawerState('transitioning');
+            bottomPanel.classList.remove('is-open');
+        } else if (drawerState === 'closed') {
+            setDrawerState('transitioning');
+            bottomPanel.classList.add('is-open');
+        }
     });
 
     meterHandle.addEventListener('touchstart', (e) => { touchStartY = e.touches[0].clientY; bottomPanel.style.transition = 'none'; });
     meterHandle.addEventListener('touchmove', (e) => {
         currentY = e.touches[0].clientY;
         const diff = currentY - touchStartY;
-        if (bottomPanel.classList.contains('is-open')) { if (diff > 0) { bottomPanel.style.transform = `translateY(calc(15vh + ${diff}px))`; } } 
+        if (drawerState === 'open') { if (diff > 0) { bottomPanel.style.transform = `translateY(calc(15vh + ${diff}px))`; } } 
         else { if (diff < 0) { bottomPanel.style.transform = `translateY(calc(100% - 15vh + ${diff}px))`; } }
     });
     meterHandle.addEventListener('touchend', () => {
         const diff = currentY - touchStartY;
         bottomPanel.style.transition = 'transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1)';
         bottomPanel.style.transform = '';
-        if (bottomPanel.classList.contains('is-open')) { if (diff > 50) bottomPanel.classList.remove('is-open'); } 
-        else { if (diff < -50) bottomPanel.classList.add('is-open'); }
+        if (drawerState === 'open' && diff > 50) {
+            setDrawerState('transitioning');
+            bottomPanel.classList.remove('is-open');
+        } else if (drawerState === 'closed' && diff < -50) {
+            setDrawerState('transitioning');
+            bottomPanel.classList.add('is-open');
+        }
         touchStartY = 0; currentY = 0;
     });
 

@@ -152,6 +152,11 @@ body {
     width: 100px;
     text-align: center;
     height: 80px;
+    transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.3s;
+}
+.queue-item.slide-back {
+    transform: translateX(-110px);
+    opacity: 0;
 }
 .queue-item .exercise-btn {
     width: 36px;
@@ -168,9 +173,9 @@ body {
     border-radius: 4px;
 }
 .queue-item:has(.queue-item-note) .exercise-btn img {
-    width: 24px;
-    height: 24px;
     border-radius: 4px;
+    width: 110%;
+    height: 110%;
 }
 .queue-item-title {
     font-size: 0.8em;
@@ -226,14 +231,34 @@ body {
     align-items: center;
     transition: transform 0.1s, box-shadow 0.2s;
     box-shadow: 0 2px 4px rgba(52, 152, 219, 0.4);
+    padding: 6px; /* Added padding for icon spacing */
 }
 .exercise-btn:active {
     transform: scale(0.95);
     box-shadow: none;
 }
 .exercise-btn img {
-    width: 32px;
-    height: 32px;
+    width: 96%;
+    height: 96%;
+}
+/* NEW: Animation for button click feedback */
+.exercise-btn.animated {
+    animation: log-success 0.5s cubic-bezier(0.25, 0.8, 0.25, 1);
+    z-index: 2;
+}
+@keyframes log-success {
+    0% {
+        transform: scale(1) translateY(0);
+        box-shadow: 0 2px 4px rgba(52, 152, 219, 0.4);
+    }
+    60% {
+        transform: scale(1.15) translateY(12px);
+        box-shadow: 0 8px 16px rgba(52, 152, 219, 0.18);
+    }
+    100% {
+        transform: scale(1) translateY(0);
+        box-shadow: 0 2px 4px rgba(52, 152, 219, 0.4);
+    }
 }
 
 .exercise-title {
@@ -294,6 +319,16 @@ body {
     min-width: 40px;
     text-align: right;
     align-self: center;
+    transition: font-size 0.2s;
+}
+#owed-count.animated {
+    animation: owed-bounce 0.5s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+@keyframes owed-bounce {
+    0% { transform: scale(1); }
+    40% { transform: scale(1.25); }
+    60% { transform: scale(1.18); }
+    100% { transform: scale(1); }
 }
 .meter-center {
     flex: 1;
