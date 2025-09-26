@@ -36,7 +36,7 @@ body {
 
 /* --- Header: Stopwatch --- */
 .stopwatch-container {
-    flex: 0 0 15vh;
+    flex: 0 0 12vh;
     display: flex;
     justify-content: space-around;
     align-items: center;
@@ -75,7 +75,7 @@ body {
 #main-content {
     flex: 1 1 70vh;
     overflow-y: auto;
-    padding: 20px;
+    padding: 16px;
     padding-bottom: calc(15vh + 20px); /* Space for the bottom panel handle */
 }
 
@@ -98,13 +98,13 @@ body {
 .exercise-main {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
 }
 
 .exercise-btn {
     flex-shrink: 0;
-    width: 50px;
-    height: 50px;
+    width: 40px;
+    height: 40px;
     border: none;
     border-radius: 10px;
     background-color: var(--primary-color);
@@ -128,6 +128,7 @@ body {
 .exercise-title {
     font-weight: 500;
     flex-grow: 1;
+    font-size: 0.9em;
 }
 
 .note-input {
@@ -135,7 +136,7 @@ body {
     padding: 8px;
     border: 1px solid var(--border-color);
     border-radius: 6px;
-    font-size: 0.9em;
+    font-size: 0.8em;
 }
 .note-input:focus {
     outline: 2px solid var(--primary-color);
