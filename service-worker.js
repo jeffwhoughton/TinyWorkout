@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tiny-workout-cache-v1';
+const CACHE_NAME = 'tiny-workout-cache-v2';
 const URLS_TO_CACHE = [
     '/',
     '/index.html',
