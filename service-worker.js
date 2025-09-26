@@ -1,22 +1,26 @@
-const CACHE_NAME = 'tiny-workout-cache-v2';
+// CHANGE: Add the repository name to the cache name to avoid conflicts
+const CACHE_NAME = 'tiny-workout-cache-v3'; 
+const REPO_PREFIX = '/TinyWorkout';
+
+// CHANGE: Prepend the repository name to all cached URLs
 const URLS_TO_CACHE = [
-    '/',
-    '/index.html',
-    '/style.css',
-    '/script.js',
-    '/manifest.json',
-    '/icons/icon-192.png',
-    '/icons/icon-512.png',
-    '/icons/pushup.png', // Add all your exercise icons here
-    '/icons/squats.png',
-    '/icons/pullup.png',
-    '/icons/stretch.png',
-    '/icons/rows.png',
-    '/icons/run.png',
-    '/icons/plank.png',
-    '/icons/bicycles.png',
-    '/icons/dumbbell.png',
-    '/icons/barbell.png',
+    `${REPO_PREFIX}/`,
+    `${REPO_PREFIX}/index.html`,
+    `${REPO_PREFIX}/style.css`,
+    `${REPO_PREFIX}/script.js`,
+    `${REPO_PREFIX}/manifest.json`,
+    `${REPO_PREFIX}/icons/icon-192.png`,
+    `${REPO_PREFIX}/icons/icon-512.png`,
+    `${REPO_PREFIX}/icons/pushup.png`,
+    `${REPO_PREFIX}/icons/squats.png`,
+    `${REPO_PREFIX}/icons/pullup.png`,
+    `${REPO_PREFIX}/icons/stretch.png`,
+    `${REPO_PREFIX}/icons/rows.png`,
+    `${REPO_PREFIX}/icons/run.png`,
+    `${REPO_PREFIX}/icons/plank.png`,
+    `${REPO_PREFIX}/icons/bicycles.png`,
+    `${REPO_PREFIX}/icons/dumbbell.png`,
+    `${REPO_PREFIX}/icons/barbell.png`,
     'https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap'
 ];
 
