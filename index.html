@@ -37,6 +37,13 @@
 
         <!-- MIDDLE 70% - EXERCISES -->
         <main id="main-content">
+            <!-- NEW: "Next Up" Queue Section -->
+            <section class="next-up-section">
+                <div id="next-up-queue" class="drop-zone">
+                    <span class="queue-placeholder">Drag exercises here</span>
+                </div>
+            </section>
+
             <div id="exercise-grid">
                 <!-- Exercises will be dynamically inserted here by script.js -->
             </div>
@@ -45,12 +52,12 @@
         <!-- BOTTOM 15% / SWIPE PANEL -->
         <div id="bottom-panel">
             <div id="meter-handle">
-                <div class="meter-content">
+                <span id="owed-count">10</span>
+                <div class="meter-center">
                     <span class="meter-label">EXERCISES OWED</span>
                     <div class="meter-bar-container">
                         <div id="meter-bar"></div>
                     </div>
-                    <span id="owed-count">10</span>
                 </div>
                 <div class="swipe-indicator">
                     <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 0 24 24" width="24px" fill="#000000"><path d="M0 0h24v24H0V0z" fill="none"/><path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6 1.41 1.41z"/></svg>
@@ -64,7 +71,6 @@
                 </div>
             </div>
         </div>
-
     </div>
 
     <script src="script.js"></script>

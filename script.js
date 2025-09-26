@@ -6,12 +6,14 @@ document.addEventListener('DOMContentLoaded', () => {
         exercisesOwed: 10,
         log: [],
         lastCheckedDate: null,
+        nextUpQueue: [],
     };
 
     const loadState = () => {
         const savedState = localStorage.getItem(APP_STATE_KEY);
         if (savedState) {
-            state = JSON.parse(savedState);
+            const loadedState = JSON.parse(savedState);
+            state = { ...state, ...loadedState };
         }
     };
 
@@ -30,7 +32,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const meterBarEl = document.getElementById('meter-bar');
     const bottomPanel = document.getElementById('bottom-panel');
     const meterHandle = document.getElementById('meter-handle');
+    const swipeIndicator = document.querySelector('.swipe-indicator');
     const logEntriesContainer = document.getElementById('log-entries');
+    const nextUpQueueContainer = document.getElementById('next-up-queue');
+    const resetQueueBtn = document.getElementById('reset-queue-btn');
+
 
     // --- EXERCISE DATA ---
     const exercises = [
@@ -46,51 +52,12 @@ document.addEventListener('DOMContentLoaded', () => {
         { id: 'barbell', title: '5 reps barbell', icon: 'barbell.png', hasNote: true },
     ];
 
-    // --- STOPWATCH LOGIC ---
-    let stopwatch = {
-        startTime: 0,
-        elapsedTime: 0,
-        intervalId: null,
-        isRunning: false,
-    };
-
-    const formatTime = (ms) => {
-        const totalSeconds = Math.floor(ms / 1000);
-        const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
-        const seconds = (totalSeconds % 60).toString().padStart(2, '0');
-        const hundredths = Math.floor((ms % 1000) / 10).toString().padStart(2, '0');
-        return `${minutes}:${seconds}:${hundredths}`;
-    };
-
-    const updateStopwatch = () => {
-        const currentTime = Date.now();
-        stopwatch.elapsedTime += currentTime - stopwatch.startTime;
-        stopwatch.startTime = currentTime;
-        stopwatchDisplay.textContent = formatTime(stopwatch.elapsedTime);
-    };
-
-    playPauseBtn.addEventListener('click', () => {
-        stopwatch.isRunning = !stopwatch.isRunning;
-        if (stopwatch.isRunning) {
-            stopwatch.startTime = Date.now();
-            stopwatch.intervalId = setInterval(updateStopwatch, 10);
-            playIcon.style.display = 'none';
-            pauseIcon.style.display = 'block';
-        } else {
-            clearInterval(stopwatch.intervalId);
-            playIcon.style.display = 'block';
-            pauseIcon.style.display = 'none';
-        }
-    });
-
-    resetBtn.addEventListener('click', () => {
-        clearInterval(stopwatch.intervalId);
-        stopwatch.isRunning = false;
-        stopwatch.elapsedTime = 0;
-        stopwatchDisplay.textContent = formatTime(0);
-        playIcon.style.display = 'block';
-        pauseIcon.style.display = 'none';
-    });
+    // --- STOPWATCH LOGIC (Unchanged) ---
+    let stopwatch = { startTime: 0, elapsedTime: 0, intervalId: null, isRunning: false };
+    const formatTime = ms => { const t = s => Math.floor(s).toString().padStart(2, '0'); const secs = ms / 1000; return `${t(secs/60%60)}:${t(secs%60)}:${t(ms%1000/10)}`; };
+    const updateStopwatch = () => { const now = Date.now(); stopwatch.elapsedTime += now - stopwatch.startTime; stopwatch.startTime = now; stopwatchDisplay.textContent = formatTime(stopwatch.elapsedTime); };
+    playPauseBtn.addEventListener('click', () => { stopwatch.isRunning = !stopwatch.isRunning; if (stopwatch.isRunning) { stopwatch.startTime = Date.now(); stopwatch.intervalId = setInterval(updateStopwatch, 10); playIcon.style.display = 'none'; pauseIcon.style.display = 'block'; } else { clearInterval(stopwatch.intervalId); playIcon.style.display = 'block'; pauseIcon.style.display = 'none'; } });
+    resetBtn.addEventListener('click', () => { clearInterval(stopwatch.intervalId); stopwatch.isRunning = false; stopwatch.elapsedTime = 0; stopwatchDisplay.textContent = formatTime(0); playIcon.style.display = 'block'; pauseIcon.style.display = 'none'; });
 
     // --- UI RENDERING ---
     const renderExercises = () => {
@@ -98,7 +65,9 @@ document.addEventListener('DOMContentLoaded', () => {
         exercises.forEach(ex => {
             const entry = document.createElement('div');
             entry.className = 'exercise-entry';
-            
+            entry.setAttribute('draggable', 'true'); 
+            entry.dataset.id = ex.id; 
+
             let noteInputHtml = '';
             if (ex.hasNote) {
                 noteInputHtml = `<input type="text" class="note-input" id="note-${ex.id}" placeholder="Note (e.g., weight)">`;
@@ -132,7 +101,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const noteInput = document.getElementById(`note-${id}`);
         const note = noteInput ? noteInput.value.trim() : '';
 
-        // Update state
         if (state.exercisesOwed > 0) {
             state.exercisesOwed -= 1;
         }
@@ -143,75 +111,74 @@ document.addEventListener('DOMContentLoaded', () => {
             note
         });
 
-        // --- CHANGE 3: The line that cleared the note input has been removed ---
-
         saveState();
         updateOwedMeter();
         renderLog();
     });
 
-    // --- LOG RENDERING WITH GROUPING ---
+    // --- LOG RENDERING WITH GROUPING & DELETION ---
     const renderLog = () => {
         logEntriesContainer.innerHTML = '';
         if (state.log.length === 0) {
             logEntriesContainer.innerHTML = '<p style="text-align:center; color: var(--text-light);">No activity yet. Go do some exercises!</p>';
             return;
         }
+        
+        const sortedLog = [...state.log].sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
 
-        const groupedByDate = state.log.reduce((acc, entry) => {
+        const groupedByDate = sortedLog.reduce((acc, entry) => {
             const entryDate = new Date(entry.timestamp).toLocaleDateString('en-US', { timeZone: 'America/New_York' });
-            if (!acc[entryDate]) {
-                acc[entryDate] = [];
-            }
+            if (!acc[entryDate]) acc[entryDate] = [];
             acc[entryDate].push(entry);
             return acc;
         }, {});
 
         const sortedDates = Object.keys(groupedByDate).sort((a, b) => new Date(b) - new Date(a));
 
-        sortedDates.forEach(dateStr => {
+        sortedDates.forEach((dateStr, dateIndex) => {
             const dateHeader = document.createElement('div');
             dateHeader.className = 'log-date-header';
-            dateHeader.textContent = new Date(dateStr).toLocaleDateString('en-US', {
-                weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-            });
+            dateHeader.textContent = new Date(dateStr).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
             logEntriesContainer.appendChild(dateHeader);
 
-            const entriesForDate = groupedByDate[dateStr];
-            const processedEntries = processAndGroupEntries(entriesForDate);
+            const entriesForDate = groupedByDate[dateStr].reverse();
+            const processedEntries = processAndGroupLogEntries(entriesForDate);
 
-            processedEntries.forEach(item => {
+            processedEntries.reverse().forEach((item, itemIndex) => {
                 const entryEl = document.createElement('div');
                 entryEl.className = 'log-entry';
                 const time = new Date(item.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-
-                let noteHtml = '';
-                if (item.note) {
-                    noteHtml = ` <span class="log-note">[${item.note}]</span>`;
+                let noteHtml = item.note ? ` <span class="log-note">[${item.note}]</span>` : '';
+                
+                let deleteBtnHtml = '';
+                if (dateIndex === 0 && itemIndex === 0) {
+                     deleteBtnHtml = `
+                        <button class="delete-log-btn" data-timestamp="${item.timestamp}" data-count="${item.count}" aria-label="Delete entry">
+                           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+                        </button>`;
                 }
 
                 entryEl.innerHTML = `
                     <div class="log-time">${time}</div>
                     <div class="log-details">${item.displayTitle}${noteHtml}</div>
+                    ${deleteBtnHtml}
                 `;
                 logEntriesContainer.appendChild(entryEl);
             });
         });
     };
     
-    const processAndGroupEntries = (entries) => {
+    const processAndGroupLogEntries = (entries) => {
         if (!entries || entries.length === 0) return [];
-    
         const grouped = [];
         let tempGroup = [entries[0]];
     
         for (let i = 1; i < entries.length; i++) {
             const prev = tempGroup[tempGroup.length - 1];
             const current = entries[i];
-            const timeDiff = (new Date(current.timestamp) - new Date(prev.timestamp)) / (1000 * 60); // Difference in minutes
-    
-            // --- CHANGE 4: Added a check for the note to the grouping condition ---
-            if (current.id === prev.id && timeDiff < 10 && current.note === prev.note) { 
+            const timeDiff = (new Date(current.timestamp) - new Date(prev.timestamp)) / (1000 * 60);
+            
+            if (current.id === prev.id && current.note === prev.note && timeDiff < 10) {
                 tempGroup.push(current);
             } else {
                 grouped.push(formatGroup(tempGroup));
@@ -219,45 +186,186 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         grouped.push(formatGroup(tempGroup));
-        return grouped.reverse();
+        return grouped;
     };
 
     const formatGroup = (group) => {
         const first = group[0];
         const count = group.length;
+        let displayTitle = first.title;
+        const notes = group.map(g => g.note).filter(Boolean).join(', ');
+
+        if (count > 1) {
+            const baseTitle = first.title;
+            if (baseTitle.includes('reps')) { displayTitle = `${count} sets, ${baseTitle}`; } 
+            else if (baseTitle.includes('m run')) { const m = parseInt(baseTitle) * count; displayTitle = m >= 1000 ? `${m/1000}km run` : `${m}m run`; }
+            else { const num = parseInt(baseTitle); displayTitle = !isNaN(num) ? `${num * count} ${baseTitle.substring(baseTitle.indexOf(' ')).trim()}` : `${count} x ${baseTitle}`; }
+        }
+        return { timestamp: first.timestamp, displayTitle, note: notes, count: count };
+    };
+
+    logEntriesContainer.addEventListener('click', (e) => {
+        const deleteBtn = e.target.closest('.delete-log-btn');
+        if (!deleteBtn) return;
         
-        // --- CHANGE 5: Simplified note handling since all notes in a group are now identical ---
-        const note = first.note;
+        const { timestamp, count } = deleteBtn.dataset;
+        const numCount = parseInt(count, 10);
+        
+        const indexToRemove = state.log.findIndex(entry => entry.timestamp === timestamp);
+        
+        if (indexToRemove > -1) {
+            state.log.splice(indexToRemove, numCount);
+            state.exercisesOwed += numCount;
+            
+            saveState();
+            updateOwedMeter();
+            renderLog();
+        }
+    });
 
-        if (count === 1) {
-            return { timestamp: first.timestamp, displayTitle: first.title, note: note };
+    // --- "NEXT UP" QUEUE LOGIC ---
+    const renderNextUpQueue = () => {
+        nextUpQueueContainer.innerHTML = '';
+        if (state.nextUpQueue.length === 0) {
+            nextUpQueueContainer.innerHTML = '<span class="queue-placeholder">Drag exercises here</span>';
+            return;
         }
 
-        const baseTitle = first.title;
-        let displayTitle = '';
+        const groupedQueue = processAndGroupQueueEntries(state.nextUpQueue);
+        
+        groupedQueue.forEach((item, index) => {
+            const queueEl = document.createElement('div');
+            queueEl.className = 'queue-item';
+            const exerciseData = exercises.find(ex => ex.id === item.id);
+            if (!exerciseData) return;
 
-        // Handle reps -> sets
-        if (baseTitle.includes('reps')) {
-            displayTitle = `${count} sets, ${baseTitle}`;
-        } 
-        // Handle distance
-        else if (baseTitle.includes('m run')) {
-            const meters = parseInt(baseTitle) * count;
-            displayTitle = meters >= 1000 ? `${meters/1000}km run` : `${meters}m run`;
-        }
-        // Handle simple counts
-        else {
-            const num = parseInt(baseTitle);
-            if (!isNaN(num)) {
-                const text = baseTitle.substring(baseTitle.indexOf(' ')).trim();
-                displayTitle = `${num * count} ${text}`;
+            let buttonHtml = `
+                <button class="exercise-btn" data-count="${item.count}" data-group-index="${index}">
+                    <img src="icons/${exerciseData.icon}" alt="${item.displayTitle}">
+                </button>
+            `;
+            const noteHtml = item.note ? `<div class="queue-item-note">${item.note}</div>` : '';
+            queueEl.innerHTML = `
+                ${buttonHtml}
+                <div class="queue-item-title">${item.displayTitle}</div>
+                ${noteHtml}
+            `;
+            nextUpQueueContainer.appendChild(queueEl);
+        });
+        // Add clear button as its own final div
+        const clearDiv = document.createElement('div');
+        clearDiv.className = 'queue-item';
+        clearDiv.innerHTML = `<button id="reset-queue-btn" aria-label="Clear Queue" style="background:none;border:none;color:var(--accent-color);font-weight:500;cursor:pointer;padding:2px 10px;">Clear</button>`;
+        nextUpQueueContainer.appendChild(clearDiv);
+    };
+
+    const processAndGroupQueueEntries = (queue) => {
+        if (!queue || queue.length === 0) return [];
+        const grouped = [];
+        let tempGroup = [queue[0]];
+
+        for (let i = 1; i < queue.length; i++) {
+            const prev = tempGroup[tempGroup.length - 1];
+            const current = queue[i];
+
+            if (current.id === prev.id && current.note === prev.note) {
+                tempGroup.push(current);
             } else {
-                 displayTitle = `${count} x ${baseTitle}`;
+                grouped.push(formatGroupForQueue(tempGroup));
+                tempGroup = [current];
             }
         }
-
-        return { timestamp: first.timestamp, displayTitle, note: note };
+        grouped.push(formatGroupForQueue(tempGroup));
+        return grouped;
     };
+    
+    const formatGroupForQueue = (group) => {
+        const first = group[0];
+        const count = group.length;
+        const { displayTitle } = formatGroup(group);
+        return { id: first.id, displayTitle, note: first.note, count: count };
+    };
+
+    // --- DRAG AND DROP LISTENERS (CORRECTED) ---
+    exerciseGrid.addEventListener('dragstart', (e) => {
+        // CORRECTED: Use .closest() to find the draggable parent
+        const draggable = e.target.closest('.exercise-entry');
+        if (draggable) {
+            e.dataTransfer.setData('text/plain', draggable.dataset.id);
+            // Use a slight delay to allow the browser to render the drag image
+            setTimeout(() => {
+                draggable.style.opacity = '0.5';
+            }, 0);
+        }
+    });
+
+    exerciseGrid.addEventListener('dragend', (e) => {
+        // CORRECTED: Use .closest() to find the draggable parent
+        const draggable = e.target.closest('.exercise-entry');
+        if (draggable) {
+            draggable.style.opacity = '1';
+        }
+    });
+
+    nextUpQueueContainer.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        nextUpQueueContainer.classList.add('drag-over');
+    });
+
+    nextUpQueueContainer.addEventListener('dragleave', () => {
+        nextUpQueueContainer.classList.remove('drag-over');
+    });
+
+    nextUpQueueContainer.addEventListener('drop', (e) => {
+        e.preventDefault();
+        nextUpQueueContainer.classList.remove('drag-over');
+        const id = e.dataTransfer.getData('text/plain');
+        const exerciseData = exercises.find(ex => ex.id === id);
+        
+        if (exerciseData) {
+            const noteInput = document.getElementById(`note-${id}`);
+            const note = noteInput ? noteInput.value.trim() : '';
+            state.nextUpQueue.push({ ...exerciseData, note });
+            saveState();
+            renderNextUpQueue();
+        }
+    });
+
+    nextUpQueueContainer.addEventListener('click', (e) => {
+        const button = e.target.closest('.exercise-btn');
+        if (button) {
+            const count = parseInt(button.dataset.count, 10);
+            const groupIndex = parseInt(button.dataset.groupIndex, 10);
+            let startIdx = 0;
+            let grouped = processAndGroupQueueEntries(state.nextUpQueue);
+            for (let i = 0; i < grouped.length; i++) {
+                if (i === groupIndex) break;
+                startIdx += grouped[i].count;
+            }
+            const itemsToLog = state.nextUpQueue.slice(startIdx, startIdx + count);
+            itemsToLog.forEach(item => {
+                if (state.exercisesOwed > 0) state.exercisesOwed--;
+                state.log.push({
+                    timestamp: new Date().toISOString(),
+                    id: item.id,
+                    title: item.title,
+                    note: item.note
+                });
+            });
+            state.nextUpQueue.splice(startIdx, count);
+            saveState();
+            updateOwedMeter();
+            renderLog();
+            renderNextUpQueue();
+            return;
+        }
+        const clearBtn = e.target.closest('#reset-queue-btn');
+        if (clearBtn) {
+            state.nextUpQueue = [];
+            saveState();
+            renderNextUpQueue();
+        }
+    });
 
     // --- DAILY UPDATE ---
     const performDailyUpdate = () => {
@@ -271,60 +379,27 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- SWIPE PANEL LOGIC ---
-    let touchStartY = 0;
-    let currentY = 0;
+    let touchStartY = 0; let currentY = 0;
     
-    // --- CHANGE 6: Added a click listener to the handle to toggle the panel ---
-    meterHandle.addEventListener('click', (e) => {
-        // This prevents the click from firing after a drag gesture ends
-        if (Math.abs(currentY - touchStartY) < 10) {
-            bottomPanel.classList.toggle('is-open');
-        }
+    swipeIndicator.addEventListener('click', () => {
+        // Toggle open/close state
+        bottomPanel.classList.toggle('is-open');
     });
 
-    meterHandle.addEventListener('touchstart', (e) => {
-        touchStartY = e.touches[0].clientY;
-        currentY = touchStartY; // Reset currentY on new touch
-        bottomPanel.style.transition = 'none';
-    });
-
+    meterHandle.addEventListener('touchstart', (e) => { touchStartY = e.touches[0].clientY; bottomPanel.style.transition = 'none'; });
     meterHandle.addEventListener('touchmove', (e) => {
         currentY = e.touches[0].clientY;
         const diff = currentY - touchStartY;
-        if (bottomPanel.classList.contains('is-open')) {
-            // If open, we are swiping down to close
-            if (diff > 0) { // Only allow pulling down
-                 bottomPanel.style.transform = `translateY(calc(15vh + ${diff}px))`;
-            }
-        } else {
-            // If closed, we are swiping up to open
-            if (diff < 0) { // Only allow pulling up
-                bottomPanel.style.transform = `translateY(calc(100% - 15vh + ${diff}px))`;
-            }
-        }
+        if (bottomPanel.classList.contains('is-open')) { if (diff > 0) { bottomPanel.style.transform = `translateY(calc(15vh + ${diff}px))`; } } 
+        else { if (diff < 0) { bottomPanel.style.transform = `translateY(calc(100% - 15vh + ${diff}px))`; } }
     });
-
-    meterHandle.addEventListener('touchend', (e) => {
+    meterHandle.addEventListener('touchend', () => {
         const diff = currentY - touchStartY;
         bottomPanel.style.transition = 'transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1)';
-        bottomPanel.style.transform = ''; // Reset inline style
-
-        // Don't toggle on simple clicks, let the click handler do that.
-        // Only toggle based on a significant swipe.
-        if (Math.abs(diff) > 50) { 
-            if (bottomPanel.classList.contains('is-open')) {
-                if (diff > 50) { // Swiped down enough to close
-                    bottomPanel.classList.remove('is-open');
-                }
-            } else {
-                if (diff < -50) { // Swiped up enough to open
-                    bottomPanel.classList.add('is-open');
-                }
-            }
-        }
-        
-        touchStartY = 0;
-        currentY = 0;
+        bottomPanel.style.transform = '';
+        if (bottomPanel.classList.contains('is-open')) { if (diff > 50) bottomPanel.classList.remove('is-open'); } 
+        else { if (diff < -50) bottomPanel.classList.add('is-open'); }
+        touchStartY = 0; currentY = 0;
     });
 
     // --- INITIALIZATION ---
@@ -334,6 +409,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderExercises();
         updateOwedMeter();
         renderLog();
+        renderNextUpQueue();
         
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/service-worker.js')
