@@ -1,0 +1,262 @@
+:root {
+    --primary-color: #3498db; /* A bright, desaturated blue */
+    --secondary-color: #2ecc71; /* A friendly green */
+    --accent-color: #e74c3c; /* A soft red for resets/alerts */
+    --background-color: #f4f7f9;
+    --card-color: #ffffff;
+    --text-color: #333333;
+    --text-light: #7f8c8d;
+    --border-color: #ecf0f1;
+    --shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+* {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+}
+
+body {
+    font-family: 'Roboto', sans-serif;
+    margin: 0;
+    background-color: var(--background-color);
+    color: var(--text-color);
+    overscroll-behavior-y: contain; /* Prevents pull-to-refresh */
+}
+
+.app-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    max-width: 500px;
+    margin: 0 auto;
+    background: var(--background-color);
+    position: relative;
+    overflow: hidden;
+}
+
+/* --- Header: Stopwatch --- */
+.stopwatch-container {
+    flex: 0 0 15vh;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 0 20px;
+    background: var(--card-color);
+    border-bottom: 1px solid var(--border-color);
+}
+
+#stopwatch-display {
+    font-size: 2.5em;
+    font-weight: 500;
+    letter-spacing: 2px;
+    color: var(--text-color);
+}
+
+.stopwatch-controls button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 10px;
+    border-radius: 50%;
+    transition: background-color 0.2s;
+}
+.stopwatch-controls button:hover {
+    background-color: var(--border-color);
+}
+.stopwatch-controls svg {
+    width: 28px;
+    height: 28px;
+    fill: var(--text-light);
+}
+#play-pause-btn svg { fill: var(--secondary-color); }
+#reset-btn svg { fill: var(--accent-color); }
+
+/* --- Main: Exercise Grid --- */
+#main-content {
+    flex: 1 1 70vh;
+    overflow-y: auto;
+    padding: 20px;
+    padding-bottom: calc(15vh + 20px); /* Space for the bottom panel handle */
+}
+
+#exercise-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+}
+
+.exercise-entry {
+    background: var(--card-color);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.exercise-main {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.exercise-btn {
+    flex-shrink: 0;
+    width: 50px;
+    height: 50px;
+    border: none;
+    border-radius: 10px;
+    background-color: var(--primary-color);
+    color: white;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: transform 0.1s, box-shadow 0.2s;
+    box-shadow: 0 2px 4px rgba(52, 152, 219, 0.4);
+}
+.exercise-btn:active {
+    transform: scale(0.95);
+    box-shadow: none;
+}
+.exercise-btn img {
+    width: 32px;
+    height: 32px;
+}
+
+.exercise-title {
+    font-weight: 500;
+    flex-grow: 1;
+}
+
+.note-input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 0.9em;
+}
+.note-input:focus {
+    outline: 2px solid var(--primary-color);
+    border-color: transparent;
+}
+
+/* --- Bottom Panel: Meter & Log --- */
+#bottom-panel {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 100vh;
+    transform: translateY(calc(100% - 15vh)); /* Start with only handle visible */
+    transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+    background: var(--card-color);
+    border-top-left-radius: 20px;
+    border-top-right-radius: 20px;
+    box-shadow: 0 -5px 20px rgba(0,0,0,0.1);
+}
+#bottom-panel.is-open {
+    transform: translateY(15vh); /* Move up to reveal log */
+}
+
+#meter-handle {
+    height: 15vh;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    cursor: pointer; /* Changed from grab to pointer */
+    user-select: none;
+    border-bottom: 1px solid var(--border-color);
+}
+.meter-content {
+    flex-grow: 1;
+}
+.meter-label {
+    font-size: 0.7em;
+    font-weight: 700;
+    color: var(--text-light);
+    letter-spacing: 1px;
+}
+.meter-bar-container {
+    width: 100%;
+    height: 8px;
+    background-color: var(--border-color);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 4px;
+}
+#meter-bar {
+    height: 100%;
+    width: 33%; /* Starts at 10/30 */
+    background: linear-gradient(90deg, var(--secondary-color), var(--primary-color));
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+#owed-count {
+    font-size: 1.5em;
+    font-weight: 700;
+    margin-left: 12px;
+    min-width: 40px;
+    text-align: right;
+}
+.swipe-indicator {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: var(--text-light);
+    opacity: 0.7;
+}
+.swipe-indicator span {
+    font-size: 0.7em;
+    font-weight: 500;
+}
+.swipe-indicator svg {
+    fill: var(--text-light);
+    /* --- CHANGE 1: Added transition for smooth rotation --- */
+    transition: transform 0.3s ease; 
+}
+
+/* --- CHANGE 2: Rule to flip the arrow when the panel is open --- */
+#bottom-panel.is-open .swipe-indicator svg {
+    transform: rotate(180deg);
+}
+
+
+/* --- Log Panel Content --- */
+#log-panel {
+    height: calc(100% - 15vh);
+    overflow-y: auto;
+    padding: 20px;
+}
+#log-panel h2 {
+    margin-top: 0;
+    text-align: center;
+}
+#log-entries .log-date-header {
+    font-weight: 700;
+    margin-top: 24px;
+    margin-bottom: 12px;
+    color: var(--primary-color);
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: 8px;
+}
+#log-entries .log-entry {
+    display: flex;
+    gap: 12px;
+    padding: 8px 0;
+}
+.log-time {
+    font-size: 0.9em;
+    color: var(--text-light);
+    flex-shrink: 0;
+    width: 70px;
+}
+.log-details {
+    font-size: 1em;
+}
+.log-note {
+    color: var(--text-light);
+    font-style: italic;
+}
