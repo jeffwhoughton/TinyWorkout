@@ -76,13 +76,23 @@ document.addEventListener('DOMContentLoaded', () => {
             logByDate[dateStr].push(entry);
         });
         // Get all dates in order
-        const dates = Object.keys(logByDate).sort((a, b) => new Date(a) - new Date(b));
+        const dateStrings = Object.keys(logByDate).sort((a, b) => new Date(a) - new Date(b));
+        // Find first and last date
+        const firstDate = new Date(dateStrings[0]);
+        const today = new Date();
+        // Calculate days between first activity and today (inclusive)
         let owed = 0;
-        dates.forEach(dateStr => {
+        let currentDate = new Date(firstDate);
+        while (currentDate <= today) {
+            const dateStr = currentDate.toLocaleDateString('en-US', { timeZone: 'America/New_York' });
             owed += 10;
-            owed -= logByDate[dateStr].length;
+            if (logByDate[dateStr]) {
+                owed -= logByDate[dateStr].length;
+            }
             if (owed < 0) owed = 0;
-        });
+            // Move to next day
+            currentDate.setDate(currentDate.getDate() + 1);
+        }
         state.exercisesOwed = owed;
     }
 
@@ -276,11 +286,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const first = group[0];
         const count = group.length;
         let displayTitle = first.title;
-        const notes = group.map(g => g.note).filter(Boolean).join(', ');
-
+        const notesArr = group.map(g => g.note).filter(Boolean);
+        let note = '';
+        if (notesArr.length > 0) {
+            // If all notes are the same, show only once
+            const allSame = notesArr.every(n => n === notesArr[0]);
+            note = allSame ? notesArr[0] : notesArr.join(', ');
+        }
         if (count > 1) {
             const baseTitle = first.title;
-            // NEW: If title matches "X reps Y" pattern, combine as "count x X Y"
             const repsMatch = baseTitle.match(/^(\d+)\sreps\s(.+)$/i);
             if (baseTitle.includes('sets,') && baseTitle.includes('reps')) {
                 // Already grouped, do nothing
@@ -305,7 +319,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 displayTitle = !isNaN(num) ? `${num * count} ${baseTitle.substring(baseTitle.indexOf(' ')).trim()}` : `${count} x ${baseTitle}`; 
             }
         }
-        return { timestamp: first.timestamp, displayTitle, note: notes, count: count };
+        return { timestamp: first.timestamp, displayTitle, note: note, count: count };
     };
 
     logEntriesContainer.addEventListener('click', (e) => {

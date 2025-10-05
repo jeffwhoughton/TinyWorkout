@@ -389,7 +389,7 @@ body {
     text-align: center;
 }
 #log-entries{
-    max-height:65vh;
+    max-height:60vh;
     overflow-y: scroll;
 }
 #log-entries .log-date-header {
