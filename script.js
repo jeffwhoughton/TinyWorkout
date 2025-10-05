@@ -36,6 +36,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const logEntriesContainer = document.getElementById('log-entries');
     const nextUpQueueContainer = document.getElementById('next-up-queue');
     const resetQueueBtn = document.getElementById('reset-queue-btn');
+    const exportLogBtn = document.getElementById('export-log-btn');
+    const importLogBtn = document.getElementById('import-log-btn');
+    const importLogInput = document.getElementById('import-log-input');
 
 
     // --- EXERCISE DATA ---
@@ -58,6 +61,76 @@ document.addEventListener('DOMContentLoaded', () => {
     const updateStopwatch = () => { const now = Date.now(); stopwatch.elapsedTime += now - stopwatch.startTime; stopwatch.startTime = now; stopwatchDisplay.textContent = formatTime(stopwatch.elapsedTime); };
     playPauseBtn.addEventListener('click', () => { stopwatch.isRunning = !stopwatch.isRunning; if (stopwatch.isRunning) { stopwatch.startTime = Date.now(); stopwatch.intervalId = setInterval(updateStopwatch, 10); playIcon.style.display = 'none'; pauseIcon.style.display = 'block'; } else { clearInterval(stopwatch.intervalId); playIcon.style.display = 'block'; pauseIcon.style.display = 'none'; } });
     resetBtn.addEventListener('click', () => { clearInterval(stopwatch.intervalId); stopwatch.isRunning = false; stopwatch.elapsedTime = 0; stopwatchDisplay.textContent = formatTime(0); playIcon.style.display = 'block'; pauseIcon.style.display = 'none'; });
+
+    // --- EXERCISES OWED CALCULATION (NEW FORMULA) ---
+    function recalculateExercisesOwed() {
+        if (!state.log || state.log.length === 0) {
+            state.exercisesOwed = 10;
+            return;
+        }
+        // Group log entries by date
+        const logByDate = {};
+        state.log.forEach(entry => {
+            const dateStr = new Date(entry.timestamp).toLocaleDateString('en-US', { timeZone: 'America/New_York' });
+            if (!logByDate[dateStr]) logByDate[dateStr] = [];
+            logByDate[dateStr].push(entry);
+        });
+        // Get all dates in order
+        const dates = Object.keys(logByDate).sort((a, b) => new Date(a) - new Date(b));
+        let owed = 0;
+        dates.forEach(dateStr => {
+            owed += 10;
+            owed -= logByDate[dateStr].length;
+            if (owed < 0) owed = 0;
+        });
+        state.exercisesOwed = owed;
+    }
+
+    // --- EXPORT/IMPORT LOGIC ---
+    exportLogBtn.addEventListener('click', () => {
+        const exportData = {
+            log: state.log
+        };
+        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'tinyworkout-log.json';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }, 100);
+    });
+
+    importLogBtn.addEventListener('click', () => {
+        importLogInput.click();
+    });
+
+    importLogInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+            try {
+                const imported = JSON.parse(evt.target.result);
+                if (Array.isArray(imported.log)) {
+                    state.log = imported.log;
+                    recalculateExercisesOwed();
+                    saveState();
+                    updateOwedMeter();
+                    renderLog();
+                } else {
+                    alert('Invalid log file format.');
+                }
+            } catch (err) {
+                alert('Error reading log file.');
+            }
+        };
+        reader.readAsText(file);
+        importLogInput.value = '';
+    });
 
     // --- UI RENDERING ---
     const renderExercises = () => {
@@ -89,6 +162,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const updateOwedMeter = () => {
+        recalculateExercisesOwed();
         owedCountEl.textContent = state.exercisesOwed;
         const percentage = Math.min((state.exercisesOwed / 30) * 100, 100);
         meterBarEl.style.width = `${percentage}%`;
