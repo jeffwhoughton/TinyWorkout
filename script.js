@@ -280,9 +280,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (count > 1) {
             const baseTitle = first.title;
-            if (baseTitle.includes('reps')) { displayTitle = `${count} sets, ${baseTitle}`; } 
-            else if (baseTitle.includes('m run')) { const m = parseInt(baseTitle) * count; displayTitle = m >= 1000 ? `${m/1000}km run` : `${m}m run`; }
-            else { const num = parseInt(baseTitle); displayTitle = !isNaN(num) ? `${num * count} ${baseTitle.substring(baseTitle.indexOf(' ')).trim()}` : `${count} x ${baseTitle}`; }
+            // NEW: If title matches "X reps Y" pattern, combine as "count x X Y"
+            const repsMatch = baseTitle.match(/^(\d+)\sreps\s(.+)$/i);
+            if (baseTitle.includes('sets,') && baseTitle.includes('reps')) {
+                // Already grouped, do nothing
+            } else if (repsMatch) {
+                // e.g. "8 reps dumbbell" -> "3x8 dumbbell"
+                displayTitle = `${count}x${repsMatch[1]} ${repsMatch[2]}`;
+            } else if (baseTitle.includes('reps')) {
+                // e.g. "8 reps dumbbell" -> "3x8 dumbbell"
+                const parts = baseTitle.split(' ');
+                if (parts.length >= 3 && parts[1] === 'reps') {
+                    displayTitle = `${count}x${parts[0]} ${parts.slice(2).join(' ')}`;
+                } else {
+                    displayTitle = `${count} sets, ${baseTitle}`;
+                }
+            } 
+            else if (baseTitle.includes('m run')) { 
+                const m = parseInt(baseTitle) * count; 
+                displayTitle = m >= 1000 ? `${m/1000}km run` : `${m}m run`; 
+            }
+            else { 
+                const num = parseInt(baseTitle); 
+                displayTitle = !isNaN(num) ? `${num * count} ${baseTitle.substring(baseTitle.indexOf(' ')).trim()}` : `${count} x ${baseTitle}`; 
+            }
         }
         return { timestamp: first.timestamp, displayTitle, note: notes, count: count };
     };
