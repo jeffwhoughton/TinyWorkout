@@ -388,6 +388,10 @@ body {
     margin-top: 0;
     text-align: center;
 }
+#log-entries{
+    max-height:65vh;
+    overflow-y: scroll;
+}
 #log-entries .log-date-header {
     font-weight: 700;
     margin-top: 24px;
